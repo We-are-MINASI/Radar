@@ -19,10 +19,13 @@
 #include <QFont>
 #include <cmath>
 
+#include "UI/paramdialog.h"
 // Подключаем Си-интерфейсы
 extern "C" {
 #include "Imitator/Imitator.h"
 #include "Imitator/UnifiedImitatorParam.h"
+
+int Imitator(struct ImitatorParametrs *parametrs, struct ImitOutData *outData);
 
 // Предполагаемый прототип вашего обработчика (подставьте ваш реальный, если имена отличаются)
 // void Handler(struct HandlerParametrs *params, struct ImitOutData *inData, struct HandlerOutData *outData);
@@ -63,10 +66,15 @@ int main(int argc, char *argv[]) {
     radButton->setMinimumSize(160, 44);
     radButton->setStyleSheet(buttonStyle);
 
+    QPushButton *paramButton = new QPushButton("Настройка параметров", &window);
+    paramButton->setMinimumSize(160, 44);
+    paramButton->setStyleSheet("font-size: 14px; padding: 8px; color: white; background-color: #2980b9; border: 1px solid #3498db;");
+
     controlLayout->addWidget(controlLabel);
     controlLayout->addWidget(simButton);
     controlLayout->addWidget(rotationButton);
     controlLayout->addWidget(radButton);
+    controlLayout->addWidget(paramButton);
     controlLayout->addStretch(1);
 
     QWidget *controlWidget = new QWidget(&window);
@@ -238,7 +246,7 @@ int main(int argc, char *argv[]) {
     };
 
     QObject::connect(&timer, &QTimer::timeout, redraw);
-    timer.start(30);
+    timer.start(3);
     redraw();
 
     // Логика кнопок
@@ -253,6 +261,11 @@ int main(int argc, char *argv[]) {
     QObject::connect(radButton, &QPushButton::clicked, [&]() {
         isRadiationOn = !isRadiationOn;
         radButton->setText(isRadiationOn ? "Выключить излучение" : "Включить излучение");
+    });
+
+    QObject::connect(paramButton, &QPushButton::clicked, [&]() {
+        ParamDialog dialog(&window); // Передаем главное окно как родителя
+        dialog.exec();               // Вызываем модально (exec заблокирует поток GUI на время настроек)
     });
 
     window.showMaximized();
