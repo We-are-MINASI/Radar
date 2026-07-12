@@ -27,7 +27,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        qmake ../../root.pro CONFIG+=release
+        qmake ../root.pro CONFIG+=release
 
     # Собираем и приложение, и тесты
     - name: Build All

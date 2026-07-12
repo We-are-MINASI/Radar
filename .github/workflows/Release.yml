@@ -22,6 +22,7 @@ jobs:
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
+        setup-python: false
         version: '6.7.2' # Укажите вашу версию Qt (например, 5.15.2 или 6.7.0)
         arch: 'gcc_64'   # Архитектура для Linux
         cache: true      # Кеширование ускорит последующие сборки
@@ -31,7 +32,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        qmake ../../src/untitled.pro CONFIG+=release  # Подставьте точное имя вашего .pro файла, если оно отличается
+        qmake ../src/untitled.pro CONFIG+=release  # Подставьте точное имя вашего .pro файла, если оно отличается
         make -j$(nproc)                        # Сборка в несколько потоков для ускорения
 
     # 5. Собираем проект
