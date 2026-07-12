@@ -20,8 +20,6 @@ jobs:
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
-        version: '6.7.2'
-        arch: 'gcc_64'
         cache: true
 
     # Генерируем Makefile для всего проекта (включая подпроекты src и tests)
