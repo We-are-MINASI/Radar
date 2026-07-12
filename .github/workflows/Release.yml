@@ -31,7 +31,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        qmake ../untitled.pro CONFIG+=release  # Подставьте точное имя вашего .pro файла, если оно отличается
+        qmake ../../src/untitled.pro CONFIG+=release  # Подставьте точное имя вашего .pro файла, если оно отличается
         make -j$(nproc)                        # Сборка в несколько потоков для ускорения
 
     # 5. Собираем проект
