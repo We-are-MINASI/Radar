@@ -2,7 +2,7 @@ name: Qt CI Release Build
 
 on:
   pull_request:
-    branches: [ main, other ] # Укажите ветки, для которых запускать проверку
+    branches: [ main ] # Укажите ветки, для которых запускать проверку
 
 jobs:
   build-linux:
