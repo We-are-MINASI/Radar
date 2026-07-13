@@ -20,7 +20,6 @@ int FormClutterSignal(struct ClutterFormationParam *p,
         return 1;
     }
 
-    long long maxCnt = timeP->max_sampling_cnt;
 
     memset(out->clutter_signals, 0, sizeof(out->clutter_signals));
     if (p->enable==1){

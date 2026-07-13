@@ -19,7 +19,6 @@ int FormTargetSignal(struct TargetFormationParam *p,
         return 1;
     }
 
-    long long maxCnt = timeP->max_sampling_cnt;
 
     memset(out->target_signals, 0, sizeof(out->target_signals));
     if (p->enable==1){
