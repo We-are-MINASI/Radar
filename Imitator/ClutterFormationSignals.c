@@ -20,8 +20,6 @@ int FormClutterSignal(struct ClutterFormationParam *p,
         return 1;
     }
 
-
-    memset(out->clutter_signals, 0, sizeof(out->clutter_signals));
     if (p->enable==1){
 		int idx=0;
 		for (int i = 0; i < PosIn->cntPP_find; i++) {

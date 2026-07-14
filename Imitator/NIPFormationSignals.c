@@ -21,7 +21,6 @@ int FormNIPSignal(struct NIPFormationParam *p,
     }
 
 
-    memset(out->nip_signals, 0, sizeof(out->nip_signals));
     if (p->enable==1){
         int idx=0;
         for (int i = 0; i < nipPosIn->cntNip; i++) {

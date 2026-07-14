@@ -23,7 +23,7 @@ int Summator(
     if (p == NULL || timeP == NULL || tagret == NULL || pp == NULL || noise == NULL || nip == NULL || time == NULL) {
         return 1;
     }
-    memset(dst_sum, 0, sizeof(dst_sum));
+
 
     if (p->enable == 1) {
         // Кэшируем размер цикла в локальную переменную (чтобы компилятор не перечитывал структуру)
