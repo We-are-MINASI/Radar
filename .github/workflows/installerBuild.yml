@@ -105,11 +105,12 @@ jobs:
             $SetupIconLine = "SetupIconFile=$ICON_PATH"
         }
 
+        # Изменено {userlocalappdata} на {localappdata}
         $IssTemplate = @"
         [Setup]
         AppName=Radar Simulator
         AppVersion=1.0
-        DefaultDirName={userlocalappdata}\RadarSimulator
+        DefaultDirName={localappdata}\RadarSimulator
         DefaultGroupName=Radar Simulator
         UninstallDisplayIcon={app}\${{ env.TARGET_NAME }}.exe
         OutputDir=$pwd
