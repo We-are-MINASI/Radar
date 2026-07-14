@@ -1,18 +1,19 @@
-name: Pack Windows App on Merge with Label
+name: Pack and Release Windows App
 
 on:
   pull_request:
-    #types: [ closed ]
+    types: [ closed ]
     branches: [ "main" ]
 
 jobs:
-  pack-windows:
+  # Первая работа: Сборка и упаковка (происходит всегда при слиянии с меткой)
+  build:
     runs-on: windows-latest
-    #if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release-win')
-
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release-win')
+    
     env:
-      TARGET_NAME: "untitled"           # Имя твоего бинарника
-      QT_VERSION: "6.7.2"               # Версия Qt
+      TARGET_NAME: "untitled"
+      QT_VERSION: "6.7.2"
 
     steps:
     - name: Checkout repository
