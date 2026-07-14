@@ -1,0 +1,150 @@
+name: Pack Windows App on Merge with Label
+
+on:
+  pull_request:
+    #types: [ closed ]
+    branches: [ "main" ]
+
+jobs:
+  pack-windows:
+    runs-on: windows-latest
+    # if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release-win')
+
+    env:
+      TARGET_NAME: "untitled"           # Имя твоего бинарника
+      QT_VERSION: "6.7.2"               # Версия Qt (синхронизирована с твоей)
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # 1. Очистка путей от конфликтующих системных компиляторов
+    - name: Clean System PATH
+      shell: powershell
+      run: |
+        $filtered_paths = $env:PATH -split ';' | Where-Object { 
+            $_ -notlike "*msys64*" -and 
+            $_ -notlike "*mingw*" -and 
+            $_ -notlike "*Strawberry*"
+        }
+        $new_path = $filtered_paths -join ';'
+        echo "PATH=$new_path" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+    # 2. Установка Qt (архитектура win64_mingw)
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: ${{ env.QT_VERSION }}
+        arch: "win64_mingw"
+        cache: true
+
+    # 3. Настройка пути к MinGW, идущему в комплекте с Qt
+    - name: Set up MinGW PATH
+      shell: powershell
+      run: |
+        $qt_root = "${{ env.QT_ROOT_DIR }}"
+        $parent_dir = Split-Path $qt_root -Parent
+        $tools_dir = Join-Path $parent_dir "Tools"
+        
+        $mingw_bin = Get-ChildItem -Path $tools_dir -Directory -Filter "mingw*" | 
+                     Select-Object -First 1 | 
+                     ForEach-Object { Join-Path $_.FullName "bin" }
+        
+        if ($mingw_bin -and (Test-Path $mingw_bin)) {
+            echo "$mingw_bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        } else {
+            Write-Error "Compiler MinGW was not found in Qt tools directory."
+        }
+
+    # 4. Скачивание rcedit
+    - name: Download rcedit
+      shell: powershell
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile "rcedit.exe"
+
+    # 5. Сборка проекта через qmake
+    - name: Build with qmake and make
+      shell: powershell
+      run: |
+        mkdir build
+        cd build
+        if (Test-Path "../src/src.pro") {
+            qmake ../src/src.pro CONFIG+=release -spec win32-g++
+        } else {
+            qmake ../untitled.pro CONFIG+=release -spec win32-g++
+        }
+        mingw32-make
+
+    # 6. Подготовка папки публикации (dist) и сбор зависимостей
+    - name: Deploy Qt Dependencies
+      shell: powershell
+      run: |
+        $DIST_DIR = "$pwd\dist"
+        New-Item -ItemType Directory -Path $DIST_DIR
+        
+        $compiled_exe = Get-ChildItem -Path "build" -Filter "${{ env.TARGET_NAME }}.exe" -Recurse | Select-Object -First 1
+        if ($null -eq $compiled_exe) { throw "Executable file ${{ env.TARGET_NAME }}.exe was not found" }
+        
+        Copy-Item $compiled_exe.FullName -Destination "$DIST_DIR\${{ env.TARGET_NAME }}.exe"
+        windeployqt --release --compiler-runtime "$DIST_DIR\${{ env.TARGET_NAME }}.exe"
+
+    # 7. Вшивание иконки radar.ico
+    - name: Inject Icon
+      shell: powershell
+      run: |
+        $EXE_PATH = "$pwd\dist\${{ env.TARGET_NAME }}.exe"
+        $ICON_PATH = "$pwd\radar.ico"
+        if (Test-Path $ICON_PATH) {
+            & ".\rcedit.exe" "$EXE_PATH" --set-icon "$ICON_PATH"
+        }
+
+    # 8. Генерация скрипта Inno Setup (.iss)
+    # Здесь используется посимвольное экранирование без двойных кавычек внутри Here-String
+    - name: Generate Inno Setup Script
+      shell: powershell
+      run: |
+        $DIST_DIR = "$pwd\dist"
+        $ISS_FILE = "$pwd\installer.iss"
+        $ICON_PATH = "$pwd\radar.ico"
+        
+        $SetupIconLine = ""
+        if (Test-Path $ICON_PATH) {
+            $SetupIconLine = "SetupIconFile=$ICON_PATH"
+        }
+
+        $IssTemplate = @"
+        [Setup]
+        AppName=Radar Simulator
+        AppVersion=1.0
+        DefaultDirName={userlocalappdata}\RadarSimulator
+        DefaultGroupName=Radar Simulator
+        UninstallDisplayIcon={app}\${{ env.TARGET_NAME }}.exe
+        OutputDir=$pwd
+        OutputBaseFilename=RadarSetup
+        $SetupIconLine
+        Compression=lzma2/max
+        SolidCompression=yes
+        PrivilegesRequired=lowest
+
+        [Files]
+        Source: "$DIST_DIR\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+
+        [Icons]
+        Name: "{group}\Radar Simulator"; Filename: "{app}\${{ env.TARGET_NAME }}.exe"
+        Name: "{userdesktop}\Radar Simulator"; Filename: "{app}\${{ env.TARGET_NAME }}.exe"
+        "@
+
+        $IssTemplate | Out-File -FilePath $ISS_FILE -Encoding utf8
+
+    # 9. Компиляция инсталлятора
+    - name: Compile Installer
+      shell: powershell
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "$pwd\installer.iss"
+
+    # 10. Загрузка готового установщика в артефакты GitHub
+    - name: Upload Installer Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Radar-Installer-Windows
+        path: RadarSetup.exe
