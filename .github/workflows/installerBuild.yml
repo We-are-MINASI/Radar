@@ -1,6 +1,5 @@
-name: Pack Windows App on Merge
+name: Pack Windows App on Merge with Label
 
-# Запуск строго после слияния/прямого пуша в main
 on:
   pull_request:
     types: [ closed ]
@@ -22,7 +21,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 1. Установка Qt (без параметра arch, чтобы избежать падения шага)
+    # 1. Установка Qt
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
@@ -35,14 +34,14 @@ jobs:
       run: |
         Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile "rcedit.exe"
 
-    # 3. Сборка проекта через qmake (под Windows MinGW)
+    # 3. Сборка проекта через qmake
     - name: Build with qmake and make
       shell: powershell
       run: |
         mkdir build
         cd build
-        qmake ../src/src.pro CONFIG+=release
-        make -f Makefile -j$(nproc)    
+        qmake ../untitled.pro CONFIG+=release
+        mingw32-make -j$env:NUMBER_OF_PROCESSORS
 
     # 4. Создание папки публикации (dist) и запуск windeployqt
     - name: Deploy Qt Dependencies
@@ -51,14 +50,11 @@ jobs:
         $DIST_DIR = "$pwd\dist"
         New-Item -ItemType Directory -Path $DIST_DIR
         
-        # Находим скомпилированный exe в папке build
         $compiled_exe = Get-ChildItem -Path "build" -Filter "${{ env.TARGET_NAME }}.exe" -Recurse | Select-Object -First 1
         if ($null -eq $compiled_exe) { throw "Скомпилированный файл ${{ env.TARGET_NAME }}.exe не найден!" }
         
-        # Переносим исполняемый файл в папку дистрибутива
         Copy-Item $compiled_exe.FullName -Destination "$DIST_DIR\${{ env.TARGET_NAME }}.exe"
         
-        # Собираем все DLL зависимости в папку dist
         Write-Host "Сбор зависимостей через windeployqt..."
         windeployqt --release --compiler-runtime "$DIST_DIR\${{ env.TARGET_NAME }}.exe"
 
@@ -84,15 +80,11 @@ jobs:
         $ISS_FILE = "$pwd\installer.iss"
         $ICON_PATH = "$pwd\radar.ico"
         
-        # Определяем, использовать ли кастомную иконку для инсталлятора
         $SetupIconLine = ""
         if (Test-Path $ICON_PATH) {
             $SetupIconLine = "SetupIconFile=$ICON_PATH"
         }
 
-        # Генерируем конфигурацию скрипта установки.
-        # Инструкция Source: "dist\*" автоматически рекурсивно заберет ВСЕ 
-        # файлы и папки (плагины, библиотеки, переводы), собранные на шаге windeployqt.
         $IssTemplate = @"
         [Setup]
         AppName=Radar Simulator
@@ -122,7 +114,6 @@ jobs:
     - name: Compile Installer
       shell: powershell
       run: |
-        # ISCC.exe по умолчанию предустановлен на виртуалках windows-latest
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "$pwd\installer.iss"
 
     # 8. Загрузка готового файла установщика в артефакты GitHub
