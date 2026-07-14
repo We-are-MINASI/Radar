@@ -126,7 +126,7 @@ jobs:
     - name: Download compiled installer
       uses: actions/download-artifact@v4
       with:
-        name: temporary-installer
+        name: RadarSetupArtifact
 
     # Создаем релиз на GitHub
     - name: Create GitHub Release
