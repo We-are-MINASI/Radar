@@ -41,10 +41,8 @@ jobs:
       run: |
         mkdir build
         cd build
-        # Вызываем qmake для генерации Makefile
-        qmake ../untitled.pro CONFIG+=release
-        # Собираем проект на доступных ядрах процессора
-        mingw32-make -j$env:NUMBER_OF_PROCESSORS
+        qmake ../src/src.pro CONFIG+=release
+        make -f Makefile -j$(nproc)    
 
     # 4. Создание папки публикации (dist) и запуск windeployqt
     - name: Deploy Qt Dependencies
