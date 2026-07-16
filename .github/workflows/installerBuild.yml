@@ -145,16 +145,16 @@ jobs:
           // Перед началом копирования файлов новой версии проверяем наличие старой
           if CurStep = ssInstall then
           begin
-            // Ищем путь деинсталляции в ветке текущего пользователя (так как PrivilegesRequired=lowest)
+            // Ищем путь деинсталляции в реестре текущего пользователя
             if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\RadarSimulator_is1', 'UninstallString', UninstallString) then
             begin
-              Write-Debug('Найдена старая версия. Запуск тихого удаления...');
+              Log('Found previous version. Launching silent uninstaller...');
               // Убираем кавычки из пути, если они есть
               UninstallString := RemoveQuotes(UninstallString);
-              // Запускаем старый unins000.exe абсолютно скрытно и ждем завершения работы
+              // Запускаем старый unins000.exe скрытно и ждем завершения работы
               if Exec(UninstallString, '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
               begin
-                Write-Debug('Предыдущая версия успешно удалена.');
+                Log('Previous version successfully uninstalled.');
               end;
             end;
           end;
