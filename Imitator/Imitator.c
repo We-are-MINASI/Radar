@@ -3,6 +3,14 @@
 #include <stdlib.h> // Для calloc и free
 #include <time.h>   // Для clock_gettime
 #define tickRate 10
+#define ENABLE_PROFILING 0
+
+#if ENABLE_PROFILING
+static double get_elapsed_ms(struct timespec start, struct timespec end) {
+    return (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1000000.0;
+}
+#endif
+
 
 int Imitator(struct ImitatorParametrs *parametrs, struct ImitOutData *out) {
     clock_t start, end;

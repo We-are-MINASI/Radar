@@ -2,7 +2,7 @@ name: Build, Iconify and Pack Radar
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "never" ]
 
 jobs:
   build-and-pack:
