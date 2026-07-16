@@ -22,13 +22,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 1. Очистка системного PATH от мешающих GCC
+    # 1. Очистка системного PATH только от конфликтующих путей (не трогая пути Qt)
     - name: Clean System PATH
       shell: powershell
       run: |
         $filtered_paths = $env:PATH -split ';' | Where-Object { 
             $_ -notlike "*msys64*" -and 
-            $_ -notlike "*mingw*" -and 
+            $_ -notlike "C:\mingw64*" -and
             $_ -notlike "*Strawberry*"
         }
         $new_path = $filtered_paths -join ';'
@@ -77,22 +77,23 @@ jobs:
         $DIST_DIR = "$pwd\dist"
         New-Item -ItemType Directory -Path $DIST_DIR
         
-        # Находим и копируем сам EXE
+        # Копируем сам исполняемый файл
         $compiled_exe = Get-ChildItem -Path "build" -Filter "${{ env.TARGET_NAME }}.exe" -Recurse | Select-Object -First 1
         if ($null -eq $compiled_exe) { throw "Executable file ${{ env.TARGET_NAME }}.exe was not found" }
         Copy-Item $compiled_exe.FullName -Destination "$DIST_DIR\${{ env.TARGET_NAME }}.exe"
         
-        # Запуск стандартного windeployqt
+        # Запуск windeployqt
         Write-Host "Запуск windeployqt..."
         windeployqt --release --compiler-runtime "$DIST_DIR\${{ env.TARGET_NAME }}.exe"
         
-        # --- Решение проблемы отсутствующих DLL ---
-        Write-Host "Принудительный поиск и копирование MinGW Runtimes..."
-        # Находим папку bin активного компилятора g++
-        $gxx_path = (Get-Command g++).Source
-        $mingw_bin_dir = Split-Path $gxx_path
+        # Находим g++, который реально использовался для сборки в этой сессии
+        $gxx_cmd = Get-Command g++ -ErrorAction SilentlyContinue
+        if ($null -eq $gxx_cmd) { throw "g++ was not found in active environment!" }
         
-        # Список файлов, которые пропустил windeployqt
+        $mingw_bin_dir = Split-Path $gxx_cmd.Source
+        Write-Host "Используем компилятор из папки: $mingw_bin_dir" -ForegroundColor Cyan
+        
+        # Принудительно копируем ТОЛЬКО родные библиотеки из этой папки
         $runtimes = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")
         
         foreach ($dll in $runtimes) {
@@ -102,7 +103,7 @@ jobs:
                 Copy-Item $src -Destination $dest -Force
                 Write-Host "Успешно скопирована библиотека: $dll" -ForegroundColor Green
             } else {
-                Write-Warning "Библиотека $dll не найдена по пути $src"
+                throw "Критическая ошибка: файл $dll не найден в папке компилятора $mingw_bin_dir"
             }
         }
 
@@ -116,15 +117,19 @@ jobs:
             & ".\rcedit.exe" "$EXE_PATH" --set-icon "$ICON_PATH"
         }
 
-    # 8. Автоматическая генерация скрипта Inno Setup (.iss) с правильной константой {localappdata}
+    # 8. Автоматическая генерация скрипта Inno Setup (.iss)
     - name: Generate Inno Setup Script
       shell: powershell
       run: |
         $DIST_DIR = "$pwd\dist"
         $ISS_FILE = "$pwd\installer.iss"
         $ICON_PATH = "$pwd\radar.ico"
+        
         $SetupIconLine = ""
-        if (Test-Path $ICON_PATH) { $SetupIconLine = "SetupIconFile=$ICON_PATH" }
+        if (Test-Path $ICON_PATH) {
+            $SetupIconLine = "SetupIconFile=$ICON_PATH"
+        }
+
         $IssTemplate = @"
         [Setup]
         AppName=Radar Simulator
@@ -138,13 +143,6 @@ jobs:
         Compression=lzma2/max
         SolidCompression=yes
         PrivilegesRequired=lowest
-
-        [Tasks]
-        ; Создание иконки на рабочем столе
-        Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-        
-        [Run]
-        Filename: "{app}\${{ env.TARGET_NAME }}.exe"; Description: "{cm:LaunchProgram,${{ env.TARGET_NAME }}}"; Flags: nowait postinstall skipifsilent
 
         [Files]
         Source: "$DIST_DIR\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
@@ -172,19 +170,17 @@ jobs:
   # Вторая работа: Публикация релиза на GitHub (ждет ручного аппрува в Environments)
   publish:
     runs-on: ubuntu-latest
-    needs: build                          # Ждем, пока выполнится первая джоба сборки
-    environment: production               # Ссылаемся на созданное нами окружение с ручным аппрувом
+    needs: build
+    environment: production
     permissions:
       contents: write
-      
+    
     steps:
-    # Скачиваем ранее сохраненный инсталлятор
     - name: Download compiled installer
       uses: actions/download-artifact@v4
       with:
         name: RadarSetupArtifact
 
-    # Создаем релиз на GitHub
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
